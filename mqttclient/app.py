@@ -81,6 +81,11 @@ def close_connection(exception) -> None:
     if db is not None:
         db.close()
 
+@app.route('/heatpump',methods=['POST'])
+def heatpump():
+    logging.info(request.data)
+    MQTT_CLIENT.publish('lounge/heatpump',request.data)
+    return request.data
 
 @app.route('/')
 def index():
