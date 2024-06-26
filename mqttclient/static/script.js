@@ -42,11 +42,6 @@ async function fetchData() {
 fetchData();
 setInterval(fetchData, 60000);
 
-async function heatpump() {
-    console.log()
-    fetch(`/heatpump`, {method:'POST', body: 'OFF'});
-};
-
 document.onclick = function(e){
     const tgt = e.target;
     fetch("/heatpump", {method: 'POST', body: tgt.innerHTML})
