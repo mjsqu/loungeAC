@@ -9,6 +9,8 @@ from flask_mqtt import Mqtt
 from pydantic_settings import BaseSettings
 
 # Configure logging
+# TODO: Add blue, yellow, black sensors to graph and add humidity
+# TODO: Put on RPI webserver
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
