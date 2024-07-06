@@ -18,7 +18,9 @@ app = Flask(__name__)
 DEBUG: bool = False
 MQTT_CLIENT: Optional[Mqtt] = None
 DATABASE: str = './data/database.db'
-MQTT_TOPIC: str = 'blue/tmp'
+MQTT_DEVICES: List[str] = ['blue','yellow','black']
+MQTT_MEASURES: List[str] = ['hmd','tmp']
+MQTT_TOPICS: List[str] = [f"{d}/{m}" for d in MQTT_DEVICES for m in MQTT_MEASURES]
 
 app = Flask(__name__)
 
@@ -46,7 +48,7 @@ def init_mqtt(flask_app: Flask) -> None:
         mqtt_broker = flask_app.config['MQTT_BROKER_URL']
         if rc == 0:
             logging.info(f"Client {client_id} connected to {mqtt_broker}!")
-            MQTT_CLIENT.subscribe(MQTT_TOPIC)
+            sub = [MQTT_CLIENT.subscribe(t) for t in MQTT_TOPICS]
         else:
             logging.error(f"Failed to connect, return code {rc}")
 
@@ -59,13 +61,13 @@ def init_mqtt(flask_app: Flask) -> None:
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logging.error(f"Error processing message: {e}")
             return
-        uptime: str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        uptime: str = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
         logging.info(f"Received message: {temp} at {uptime}")
         with app.app_context():
             db = get_db()
             db.execute(
-                "INSERT INTO temperature_data (uptime, temp) VALUES (?, ?)",
-                (uptime, temp)
+                "INSERT INTO temperature_data (sensor, uptime, temp) VALUES (?, ?, ?)",
+                (message.topic, uptime, temp)
             )
             db.commit()
 
@@ -112,15 +114,17 @@ def data():
         hours = 1
 
     db = get_db()
-    min_time: datetime.datetime = datetime.datetime.utcnow() - datetime.timedelta(hours=hours)
+    min_time: datetime.datetime = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=hours)
     cursor = db.execute(
         "SELECT * FROM temperature_data WHERE uptime > ?",
         (min_time.strftime("%Y-%m-%d %H:%M:%S"),)
     )
     rows = cursor.fetchall()
-    times: List[str] = [row[1] for row in rows]
-    temperatures: List[float] = [row[2] for row in rows]
-    return jsonify({"times": times, "temperatures": temperatures})
+    sensors: List[str] = [row[1] for row in rows]
+    times: List[str] = [row[2] for row in rows]
+    temperatures: List[float] = [row[3] for row in rows]
+    #TODO: Return a list of dicts
+    return jsonify({"sensors": sensors, "times": times, "temperatures": temperatures})
 
 
 if __name__ == '__main__':
@@ -129,7 +133,7 @@ if __name__ == '__main__':
         d = get_db()
         d.execute(
             "CREATE TABLE IF NOT EXISTS "
-            "temperature_data (id INTEGER PRIMARY KEY, uptime TEXT, temp REAL)"
+            "temperature_data (id INTEGER PRIMARY KEY, sensor TEXT, uptime TEXT, temp REAL)"
         )
         d.commit()
     if DEBUG:

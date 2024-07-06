@@ -36,6 +36,7 @@ async function fetchData() {
     const data = await response.json();
     chart.data.labels = data.times.map(time => new Date(time).toLocaleString());
     chart.data.datasets[0].data = data.temperatures;
+    console.log(data.sensors);
     chart.update();
 }
 
